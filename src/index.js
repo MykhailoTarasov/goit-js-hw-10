@@ -1,63 +1,54 @@
 import { fetchBreeds, fetchCatByBreed } from './cat-api';
+import { Report } from 'notiflix/build/notiflix-report-aio';
 import SlimSelect from 'slim-select';
 import 'slim-select/dist/slimselect.css';
-import { Notify } from 'notiflix/build/notiflix-notify-aio';
 
-const elems = {
-  breedSelect: document.querySelector('.breed-select'),
-  loader: document.querySelector('.loader'),
-  error: document.querySelector('.error'),
-  catInfo: document.querySelector('.cat-info'),
-};
-elems.catInfo.classList.add('is-hidden');
+const breedList = document.querySelector('.breed-select');
+const catInfo = document.querySelector('.cat-info');
+const loaderEl = document.querySelector('.loader');
 
-elems.breedSelect.addEventListener('change', createMarkup);
-
-function createMarkup(evt) {
-  elems.loader.classList.replace('is-hidden', 'loader');
-  elems.breedSelect.classList.add('is-hidden');
-  elems.catInfo.classList.add('is-hidden');
-
-  const breedId = evt.currentTarget.value;
-
-  fetchCatByBreed(breedId)
-    .then(data => {
-      elems.loader.classList.replace('loader', 'is-hidden');
-      elems.breedSelect.classList.remove('is-hidden');
-
-      const { url, breeds } = data[0];
-
-      elems.catInfo.innerHTML = `<img src="${url}" alt="${breeds[0].name}" width="400"/>
-      <div class=""><h2>${breeds[0].name}</h2>
-      <p>${breeds[0].description}</p>
-      <p><strong>Temperament:</strong> ${breeds[0].temperament}</p></div>`;
-      elems.catInfo.classList.remove('is-hidden');
+fetchBreeds()
+    .then(({ data }) => {
+        data.map(({ id, name }) => breedList.insertAdjacentHTML('beforeend', createOptions(id, name)));
+        loaderEl.classList.add('visually-hidden');
+        new SlimSelect({
+            select: '#breeds',
+        })
+        breedList.classList.remove('visually-hidden');
+        breedList.addEventListener('change', getInfo);
     })
-    .catch(onError);
+    .catch(() => {
+        loaderEl.classList.add('visually-hidden')
+        Report.failure('Error', 'Oops! Something went wrong! Try reloading the page!', 'Ok');
+    });
+    
+const createOptions = (id, name) => `<option value="${id}">${name}</option>`;
+    
+function getInfo(evt) {
+    catInfo.classList.add('visually-hidden');
+    catInfo.innerHTML = '';
+    loaderEl.classList.remove('visually-hidden');
+    fetchCatByBreed(evt.currentTarget.value)
+        .then(({ data }) => {
+            if (data.length < 1) {
+                Report.failure("Error", "We can't find any information about this breed:( Try find another breed.", "Ok");
+                loaderEl.classList.add('visually-hidden');
+                return;
+            }
+            data.map(({ url, breeds }) => catInfo.innerHTML = createMarkup(url, breeds));
+            catInfo.classList.remove('visually-hidden');
+            loaderEl.classList.add('visually-hidden');
+        })
+        .catch(() => {
+            loaderEl.classList.add('visually-hidden');
+            Report.failure('Error', 'Oops! Something went wrong! Try reloading the page!', 'Ok');
+        })
 }
-updateSelect();
 
-function updateSelect(data) {
-  fetchBreeds(data)
-    .then(data => {
-      elems.loader.classList.replace('loader', 'is-hidden');
-
-      let markSelect = data.map(({ name, id }) => {
-        return `<option value ='${id}'>${name}</option>`;
-      });
-      elems.breedSelect.insertAdjacentHTML('beforeend', markSelect);
-      new SlimSelect({
-        select: elems.breedSelect,
-      });
-    })
-    .catch(onError);
-}
-
-function onError() {
-  elems.error.classList.remove('error');
-  elems.loader.classList.replace('loader', 'is-hidden');
-
-  Notify.failure(
-    'Oops! Something went wrong! Try reloading the page!'
-  );
-}
+const createMarkup = (url, info) => `
+      <img src="${url}" alt="${info[0].name}" width='400' >
+      <div>
+      <h2>${info[0].name}</h2>
+      <p> ${info[0].description}</p>
+      <p><b>Temperament:</b></b> ${info[0].temperament}</p>
+      </div>`;
