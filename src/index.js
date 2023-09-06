@@ -58,6 +58,6 @@ function onError() {
   elems.loader.classList.replace('loader', 'is-hidden');
 
   Notify.failure(
-    'Ой! Щось пішло не так! Спробуйте перезавантажити сторінку або виберіть іншу породу котів!'
+    'Oops! Something went wrong! Try reloading the page!'
   );
 }
